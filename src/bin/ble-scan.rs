@@ -1,20 +1,15 @@
 #![no_std]
 #![no_main]
 
-use core::mem;
-use defmt::println;
-use defmt_rtt as _;
-pub use nrf_softdevice_s140 as raw;
-use panic_probe as _;
+use core::mem::MaybeUninit;
 
-#[defmt::panic_handler]
-fn panic() -> ! {
-    cortex_m::asm::udf()
-}
+use blesf as _;
+use nrf52840_hal as _;
+pub use nrf_softdevice_s140 as raw;
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
-    println!("Hello world!");
+    defmt::println!("Hello world!");
 
     // Enable SoftDevice
     let clock = raw::nrf_clock_lf_cfg_t {
@@ -26,10 +21,10 @@ fn main() -> ! {
     let ret = unsafe { raw::sd_softdevice_enable(&clock, Some(fault_handler)) };
     match ret {
         raw::NRF_SUCCESS => {
-            println!("SoftDevice enabled");
+            defmt::println!("SoftDevice enabled");
         }
         _ => {
-            println!("SoftDevice error {}", ret);
+            defmt::println!("SoftDevice error {}", ret);
         }
     }
 
@@ -38,21 +33,21 @@ fn main() -> ! {
     let ret = unsafe { raw::sd_ble_enable(&mut wanted_app_ram_base as _) };
     match ret {
         raw::NRF_SUCCESS => {
-            println!("BLE enabled");
-            println!(
+            defmt::println!("BLE enabled");
+            defmt::println!(
                 "SoftDevice RAM: {:?} bytes",
                 wanted_app_ram_base - 0x20000000
             );
         }
         _ => {
-            println!("BLE error {}", ret);
+            defmt::println!("BLE error {}", ret);
         }
     }
 
     // Get BLE addr
-    let mut addr: raw::ble_gap_addr_t = unsafe { mem::zeroed() };
+    let mut addr: raw::ble_gap_addr_t = unsafe { core::mem::zeroed() };
     let _ret = unsafe { raw::sd_ble_gap_addr_get(&mut addr) };
-    println!("BLE addr: {:02x}", addr.addr);
+    defmt::println!("BLE addr: {:02x}", addr.addr);
 
     // BLE Scan
     const BUF_LEN: usize = 256;
@@ -61,10 +56,10 @@ fn main() -> ! {
         p_data: unsafe { BUF.as_mut_ptr() },
         len: BUF_LEN as u16,
     };
-    let mut scan_params: raw::ble_gap_scan_params_t = unsafe { mem::zeroed() };
+    let mut scan_params: raw::ble_gap_scan_params_t = unsafe { core::mem::zeroed() };
     scan_params.set_extended(1);
     scan_params.set_active(0);
-    scan_params.scan_phys = 1;
+    scan_params.scan_phys = raw::BLE_GAP_PHY_AUTO as _;
     scan_params.timeout = raw::BLE_GAP_SCAN_TIMEOUT_UNLIMITED as u16;
     scan_params.interval = 2732;
     scan_params.window = 500;
@@ -72,17 +67,16 @@ fn main() -> ! {
     let ret = unsafe { raw::sd_ble_gap_scan_start(&scan_params, &BUF_DATA) };
     match ret {
         raw::NRF_SUCCESS => {
-            println!("BLE scanning");
+            defmt::println!("BLE scanning");
         }
         _ => {
-            println!("BLE scanning error {}", ret);
+            defmt::println!("BLE scanning error {}", ret);
         }
     }
 
     // BLE handle events
     const BLE_EVT_MAX_SIZE: u16 = 128;
-    let mut evt: mem::MaybeUninit<[u32; BLE_EVT_MAX_SIZE as usize / 4]> =
-        mem::MaybeUninit::uninit();
+    let mut evt: MaybeUninit<[u32; BLE_EVT_MAX_SIZE as usize / 4]> = MaybeUninit::uninit();
 
     loop {
         let mut len: u16 = BLE_EVT_MAX_SIZE;
@@ -90,9 +84,21 @@ fn main() -> ! {
         match ret {
             raw::NRF_SUCCESS => unsafe {
                 let ble_evt = evt.as_ptr() as *const raw::ble_evt_t;
-                println!("BLE event {:?}", (*ble_evt).header.evt_id);
+                defmt::println!("BLE event {:?}", (*ble_evt).header.evt_id);
             },
-            _ => {}
+            raw::NRF_ERROR_INVALID_ADDR => {
+                defmt::println!("Invalid or not sufficiently aligned pointer supplied.");
+            }
+            raw::NRF_ERROR_NOT_FOUND => {
+                // defmt::println!("No events ready to be pulled.");
+            }
+            raw::NRF_ERROR_DATA_SIZE => {
+                defmt::println!("Event ready but could not fit into the supplied buffer.");
+                defmt::println!("Required {:?}", len);
+            }
+            _ => {
+                defmt::println!("BLE event {}", ret);
+            }
         }
     }
 }
