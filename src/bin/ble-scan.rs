@@ -76,7 +76,9 @@ fn main() -> ! {
 
     // BLE handle events
     const BLE_EVT_MAX_SIZE: u16 = 128;
-    let mut evt: MaybeUninit<[u32; BLE_EVT_MAX_SIZE as usize / 4]> = MaybeUninit::uninit();
+    const BLE_EVT_PTR_ALIGNMENT: usize = raw::BLE_EVT_PTR_ALIGNMENT as _;
+    const BLE_EVT_SIZE: usize = BLE_EVT_MAX_SIZE as usize / BLE_EVT_PTR_ALIGNMENT;
+    let mut evt: MaybeUninit<[u32; BLE_EVT_SIZE]> = MaybeUninit::uninit();
 
     loop {
         let mut len: u16 = BLE_EVT_MAX_SIZE;
