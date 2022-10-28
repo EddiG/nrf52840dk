@@ -26,8 +26,7 @@ fn main() -> ! {
     let clocks = Clocks::new(periph.CLOCK);
     let clocks = clocks.enable_ext_hfosc();
     let clocks = clocks.set_lfclk_src_external(clocks::LfOscConfiguration::NoExternalNoBypass);
-    let clocks = clocks.start_lfclk();
-    let _clocks = clocks.enable_ext_hfosc();
+    let _clocks = clocks.start_lfclk();
     defmt::debug!("Clocks configured");
 
     // Setup RTC0 interrupts
