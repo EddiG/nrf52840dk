@@ -3,17 +3,9 @@
 
 use blesf::hal::{
     clocks::{self, Clocks},
-    pac::{interrupt, Interrupt, Peripherals, NVIC},
-    rtc::{Rtc, RtcInterrupt},
+    pac::Peripherals,
+    rtc::{Rtc, RtcCompareReg, RtcInterrupt},
 };
-
-#[allow(non_camel_case_types)]
-#[allow(non_upper_case_globals)]
-#[allow(non_snake_case)]
-#[interrupt]
-fn RTC0() {
-    defmt::println!("RTC0 Interrupt");
-}
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
@@ -28,11 +20,21 @@ fn main() -> ! {
 
     // Setup RTC0 interrupts
     let mut rtc = Rtc::new(periph.RTC0, 0).unwrap();
+    rtc.enable_event(RtcInterrupt::Compare0);
+    let _ = rtc.set_compare(RtcCompareReg::Compare0, 100);
     rtc.enable_counter();
-    rtc.enable_interrupt(RtcInterrupt::Tick, None);
-    unsafe { NVIC::unmask(Interrupt::RTC0) };
 
     loop {
-        // cortex_m::asm::bkpt()
+        let counter = rtc.get_counter();
+        defmt::println!("RTC0: {}", counter);
+
+        if counter >= 200 {
+            cortex_m::asm::bkpt();
+        }
+
+        if rtc.is_event_triggered(RtcInterrupt::Compare0) {
+            defmt::println!("RTC0 Compare0");
+            rtc.reset_event(RtcInterrupt::Compare0);
+        }
     }
 }
