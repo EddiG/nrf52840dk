@@ -22,10 +22,9 @@ fn main() -> ! {
     let periph = Peripherals::take().unwrap();
 
     // Setup clocks
-    let clocks = Clocks::new(periph.CLOCK);
-    let clocks = clocks.enable_ext_hfosc();
-    let clocks = clocks.set_lfclk_src_external(clocks::LfOscConfiguration::NoExternalNoBypass);
-    clocks.start_lfclk();
+    Clocks::new(periph.CLOCK)
+        .set_lfclk_src_external(clocks::LfOscConfiguration::NoExternalNoBypass)
+        .start_lfclk();
 
     // Setup TIMER1
     let mut timer = Timer::new(periph.TIMER1);
