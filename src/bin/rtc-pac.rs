@@ -13,12 +13,14 @@ fn main() -> ! {
 
     // Initialize RTC
     let rtc = p.RTC0;
+    // setup compare 0
     let cmp = 0;
-    rtc.evtenset.write(|w| w.compare0().set());
-    rtc.cc[cmp].write(|w| unsafe { w.bits(100) });
-    rtc.tasks_start.write(|w| unsafe { w.bits(1) });
+    rtc.evtenset.write(|w| w.compare0().set()); // enable event
+    rtc.cc[cmp].write(|w| unsafe { w.bits(100) }); // set the required counter number to emit an event
+    rtc.tasks_start.write(|w| unsafe { w.bits(1) }); // start counter
 
     loop {
+        // print current counter value
         let counter = rtc.counter.read().bits();
         defmt::println!("RTC0: {}", counter);
 
@@ -26,6 +28,7 @@ fn main() -> ! {
             cortex_m::asm::bkpt();
         }
 
+        // wait for the event from compare 0
         if rtc.events_compare[cmp].read().bits() == 1 {
             defmt::println!("RTC Compare0");
             rtc.events_compare[cmp].write(|w| unsafe { w.bits(0) });
