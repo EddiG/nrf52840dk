@@ -12,7 +12,7 @@ use blesf::hal::{
 #[allow(non_snake_case)]
 #[interrupt]
 fn RTC0() {
-    defmt::println!("RTC0");
+    defmt::println!("RTC0 Interrupt");
 }
 
 #[cortex_m_rt::entry]
@@ -28,8 +28,8 @@ fn main() -> ! {
 
     // Setup RTC0 interrupts
     let mut rtc = Rtc::new(periph.RTC0, 0).unwrap();
-    rtc.enable_interrupt(RtcInterrupt::Tick, None);
     rtc.enable_counter();
+    rtc.enable_interrupt(RtcInterrupt::Tick, None);
     unsafe { NVIC::unmask(Interrupt::RTC0) };
 
     loop {
