@@ -1,8 +1,7 @@
 #![no_std]
 #![no_main]
 
-use blesf as _;
-use nrf52840_hal::{pac::Peripherals, temp::Temp};
+use blesf::hal::{pac::Peripherals, temp::Temp};
 
 #[cortex_m_rt::entry]
 fn main() -> ! {

@@ -1,8 +1,7 @@
 #![no_std]
 #![no_main]
 
-use blesf as _;
-use nrf52840_hal::{
+use blesf::hal::{
     clocks::{self, Clocks},
     pac::{interrupt, Interrupt, Peripherals, NVIC},
     rtc::{Rtc, RtcInterrupt},
@@ -26,8 +25,7 @@ fn main() -> ! {
     let clocks = Clocks::new(periph.CLOCK);
     let clocks = clocks.enable_ext_hfosc();
     let clocks = clocks.set_lfclk_src_external(clocks::LfOscConfiguration::NoExternalNoBypass);
-    let _clocks = clocks.start_lfclk();
-    defmt::debug!("Clocks configured");
+    clocks.start_lfclk();
 
     // Setup RTC0 interrupts
     let mut rtc = Rtc::new(periph.RTC0, 0).unwrap();
