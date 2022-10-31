@@ -7,10 +7,25 @@ use blesf as _;
 use nrf52840_hal as _;
 pub use nrf_softdevice_s140 as raw;
 
+const BUF_LEN: usize = 512;
+static mut BUF: [u8; BUF_LEN] = [0u8; BUF_LEN];
+static mut BUF_DATA: raw::ble_data_t = raw::ble_data_t {
+    p_data: unsafe { BUF.as_mut_ptr() },
+    len: BUF_LEN as u16,
+};
+
+fn scan(scan_params: *const raw::ble_gap_scan_params_t) {
+    let ret = unsafe { raw::sd_ble_gap_scan_start(scan_params, &BUF_DATA) };
+    match ret {
+        raw::NRF_SUCCESS => {}
+        _ => {
+            defmt::println!("BLE scanning error {}", ret);
+        }
+    }
+}
+
 #[cortex_m_rt::entry]
 fn main() -> ! {
-    defmt::println!("Hello world!");
-
     // Enable SoftDevice
     let clock = raw::nrf_clock_lf_cfg_t {
         source: raw::NRF_CLOCK_LF_SRC_RC as u8,
@@ -44,18 +59,12 @@ fn main() -> ! {
         }
     }
 
-    // Get BLE addr
+    // Print BLE address
     let mut addr: raw::ble_gap_addr_t = unsafe { core::mem::zeroed() };
     let _ret = unsafe { raw::sd_ble_gap_addr_get(&mut addr) };
     defmt::println!("BLE addr: {:02x}", addr.addr);
 
     // BLE Scan
-    const BUF_LEN: usize = 512;
-    static mut BUF: [u8; BUF_LEN] = [0u8; BUF_LEN];
-    static mut BUF_DATA: raw::ble_data_t = raw::ble_data_t {
-        p_data: unsafe { BUF.as_mut_ptr() },
-        len: BUF_LEN as u16,
-    };
     let mut scan_params: raw::ble_gap_scan_params_t = unsafe { core::mem::zeroed() };
     scan_params.set_extended(1);
     scan_params.set_active(0);
@@ -64,15 +73,7 @@ fn main() -> ! {
     scan_params.interval = 2732;
     scan_params.window = 500;
     scan_params.set_filter_policy(raw::BLE_GAP_SCAN_FP_ACCEPT_ALL as u8);
-    let ret = unsafe { raw::sd_ble_gap_scan_start(&scan_params, &BUF_DATA) };
-    match ret {
-        raw::NRF_SUCCESS => {
-            defmt::println!("BLE scanning");
-        }
-        _ => {
-            defmt::println!("BLE scanning error {}", ret);
-        }
-    }
+    scan(&scan_params);
 
     // BLE handle events
     const BLE_EVT_MAX_SIZE: u16 = 128;
@@ -84,36 +85,37 @@ fn main() -> ! {
         let mut len: u16 = BLE_EVT_MAX_SIZE;
         let ret = unsafe { raw::sd_ble_evt_get(evt.as_mut_ptr() as *mut u8, &mut len) };
         match ret {
-            raw::NRF_SUCCESS => unsafe {
-                let ble_evt = evt.as_ptr() as *const raw::ble_evt_t;
-                let evt_id = (*ble_evt).header.evt_id as u32;
-                defmt::println!("BLE event {:?}", evt_id);
+            raw::NRF_SUCCESS => {
+                let ble_evt = unsafe { &*(evt.as_ptr() as *const raw::ble_evt_t) };
+                let evt_id = ble_evt.header.evt_id as u32;
                 match evt_id {
                     raw::BLE_GAP_EVTS_BLE_GAP_EVT_ADV_REPORT => {
-                        let evt = (*ble_evt).evt.gap_evt.as_ref();
-                        let peer_addr = evt.params.adv_report.peer_addr.addr;
-                        let tx_power = evt.params.adv_report.tx_power;
-                        let rssi = evt.params.adv_report.rssi;
-                        let report_status = evt.params.adv_report.type_.status() as u32;
+                        let evt = unsafe { ble_evt.evt.gap_evt.as_ref() };
+                        let peer_addr = unsafe { evt.params.adv_report.peer_addr.addr };
+                        let rssi = unsafe { evt.params.adv_report.rssi };
+                        let ch_index = unsafe { evt.params.adv_report.ch_index };
+                        let report_status = unsafe { evt.params.adv_report.type_.status() } as u32;
                         defmt::println!(
-                            "Peer address: {:02x}, TX Power: {}, RSSI: {}",
+                            "Peer address: {:02x}, RSSI: {}, CH: {}",
                             peer_addr,
-                            tx_power,
-                            rssi
+                            rssi,
+                            ch_index
                         );
-                        defmt::println!("Report status {}", report_status);
 
                         match report_status {
-                            raw::BLE_GAP_ADV_DATA_STATUS_INCOMPLETE_MORE_DATA => {}
+                            raw::BLE_GAP_ADV_DATA_STATUS_COMPLETE => {
+                                scan(core::ptr::null());
+                            }
                             _ => {
-                                let ret = raw::sd_ble_gap_scan_start(core::ptr::null(), &BUF_DATA);
-                                defmt::println!("BLE scanning error {}", ret);
+                                defmt::println!("BLE ADV Report status {}", report_status);
                             }
                         }
                     }
-                    _ => {}
+                    _ => {
+                        defmt::println!("BLE Event ID {:?}", evt_id);
+                    }
                 }
-            },
+            }
             raw::NRF_ERROR_INVALID_ADDR => {
                 defmt::println!("Invalid or not sufficiently aligned pointer supplied.");
             }
