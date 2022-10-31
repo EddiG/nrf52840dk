@@ -92,8 +92,15 @@ fn main() -> ! {
                     raw::BLE_GAP_EVTS_BLE_GAP_EVT_ADV_REPORT => {
                         let evt = (*ble_evt).evt.gap_evt.as_ref();
                         let peer_addr = evt.params.adv_report.peer_addr.addr;
+                        let tx_power = evt.params.adv_report.tx_power;
+                        let rssi = evt.params.adv_report.rssi;
                         let report_status = evt.params.adv_report.type_.status() as u32;
-                        defmt::println!("Peer address {:02x}", peer_addr);
+                        defmt::println!(
+                            "Peer address: {:02x}, TX Power: {}, RSSI: {}",
+                            peer_addr,
+                            tx_power,
+                            rssi
+                        );
                         defmt::println!("Report status {}", report_status);
 
                         match report_status {
