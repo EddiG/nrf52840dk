@@ -13,10 +13,9 @@ fn main() -> ! {
 
     // Initialize RTC
     let rtc = p.RTC0;
-    // setup compare 0
-    let cmp = 0;
+    let cmp = 0; // select Compare0
     rtc.evtenset.write(|w| w.compare0().set()); // enable event
-    rtc.cc[cmp].write(|w| unsafe { w.bits(100) }); // set the required counter number to emit an event
+    rtc.cc[cmp].write(|w| unsafe { w.bits(100) }); // set the required counter value to emit an event
     rtc.tasks_start.write(|w| unsafe { w.bits(1) }); // start counter
 
     loop {

@@ -50,7 +50,7 @@ fn main() -> ! {
     defmt::println!("BLE addr: {:02x}", addr.addr);
 
     // BLE Scan
-    const BUF_LEN: usize = 256;
+    const BUF_LEN: usize = 512;
     static mut BUF: [u8; BUF_LEN] = [0u8; BUF_LEN];
     static mut BUF_DATA: raw::ble_data_t = raw::ble_data_t {
         p_data: unsafe { BUF.as_mut_ptr() },
@@ -86,7 +86,26 @@ fn main() -> ! {
         match ret {
             raw::NRF_SUCCESS => unsafe {
                 let ble_evt = evt.as_ptr() as *const raw::ble_evt_t;
-                defmt::println!("BLE event {:?}", (*ble_evt).header.evt_id);
+                let evt_id = (*ble_evt).header.evt_id as u32;
+                defmt::println!("BLE event {:?}", evt_id);
+                match evt_id {
+                    raw::BLE_GAP_EVTS_BLE_GAP_EVT_ADV_REPORT => {
+                        let evt = (*ble_evt).evt.gap_evt.as_ref();
+                        let peer_addr = evt.params.adv_report.peer_addr.addr;
+                        let report_status = evt.params.adv_report.type_.status() as u32;
+                        defmt::println!("Peer address {:02x}", peer_addr);
+                        defmt::println!("Report status {}", report_status);
+
+                        match report_status {
+                            raw::BLE_GAP_ADV_DATA_STATUS_INCOMPLETE_MORE_DATA => {}
+                            _ => {
+                                let ret = raw::sd_ble_gap_scan_start(core::ptr::null(), &BUF_DATA);
+                                defmt::println!("BLE scanning error {}", ret);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
             },
             raw::NRF_ERROR_INVALID_ADDR => {
                 defmt::println!("Invalid or not sufficiently aligned pointer supplied.");
