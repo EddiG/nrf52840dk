@@ -9,6 +9,9 @@ fn main() -> ! {
 
     // Initialize CLOCK
     let clock = p.CLOCK;
+    clock
+        .lfclksrc
+        .write(|w| w.src().xtal().bypass().bit(false).external().bit(false));
     clock.tasks_lfclkstart.write(|w| unsafe { w.bits(1) });
 
     // Initialize RTC
