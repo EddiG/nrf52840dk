@@ -7,12 +7,17 @@ use blesf::hal::{
     rtc::{Rtc, RtcInterrupt},
 };
 
+static mut COUNT: u8 = 0;
+
 #[allow(non_camel_case_types)]
 #[allow(non_upper_case_globals)]
 #[allow(non_snake_case)]
 #[interrupt]
 fn RTC0() {
-    defmt::println!("RTC0 Interrupt");
+    defmt::println!("RTC0 Interrupt {}", unsafe {
+        COUNT += 1;
+        COUNT
+    });
 }
 
 #[cortex_m_rt::entry]
