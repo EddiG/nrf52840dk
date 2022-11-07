@@ -19,15 +19,17 @@ fn TIMER1() {
 fn main() -> ! {
     defmt::println!("TIMER1 Example");
 
-    let periph = Peripherals::take().unwrap();
+    let Some(p) = Peripherals::take() else {
+        defmt::panic!("The Peripherals cannot be taken");
+    };
 
     // Setup clocks
-    Clocks::new(periph.CLOCK)
+    Clocks::new(p.CLOCK)
         .set_lfclk_src_external(clocks::LfOscConfiguration::NoExternalNoBypass)
         .start_lfclk();
 
     // Setup TIMER1
-    let mut timer = Timer::new(periph.TIMER1);
+    let mut timer = Timer::new(p.TIMER1);
     timer.enable_interrupt();
     unsafe { NVIC::unmask(Interrupt::TIMER1) };
     timer.delay(1000000);

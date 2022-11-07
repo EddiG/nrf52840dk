@@ -24,7 +24,9 @@ fn RTC0() {
 fn main() -> ! {
     defmt::println!("RTC Example");
 
-    let p = Peripherals::take().unwrap();
+    let Some(p) = Peripherals::take() else {
+        defmt::panic!("The Peripherals cannot be taken");
+    };
 
     // Setup clocks
     Clocks::new(p.CLOCK)

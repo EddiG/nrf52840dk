@@ -11,15 +11,17 @@ use blesf::hal::{
 fn main() -> ! {
     defmt::println!("RTC Example");
 
-    let periph = Peripherals::take().unwrap();
+    let Some(p) = Peripherals::take() else {
+        defmt::panic!("The Peripherals cannot be taken");
+    };
 
     // Setup clocks
-    Clocks::new(periph.CLOCK)
+    Clocks::new(p.CLOCK)
         .set_lfclk_src_external(clocks::LfOscConfiguration::NoExternalNoBypass)
         .start_lfclk();
 
     // Setup RTC0 interrupts
-    let mut rtc = Rtc::new(periph.RTC0, 0).unwrap();
+    let mut rtc = Rtc::new(p.RTC0, 0).unwrap();
     rtc.enable_event(RtcInterrupt::Compare0);
     let _ = rtc.set_compare(RtcCompareReg::Compare0, 100);
     rtc.enable_counter();
